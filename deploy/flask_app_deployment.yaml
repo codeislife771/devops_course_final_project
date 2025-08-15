@@ -24,13 +24,13 @@ spec:
                 name: flask-config
           livenessProbe:
             httpGet:
-              path: /tasks
+              path: /health
               port: 5000
-            initialDelaySeconds: 10
-            periodSeconds: 5
+            initialDelaySeconds: 10 # start checking 10s after container starts
+            periodSeconds: 5 # check every 5s
           readinessProbe:
             httpGet:
-              path: /tasks
+              path: /health
               port: 5000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 5 # start checking 5s after container starts
+            periodSeconds: 5 # check every 5s
