@@ -1,0 +1,74 @@
+# .github/workflows/ci.yml
+name: Tasks API CI/CD
+
+on:
+  push:
+    branches: 
+      - 'feature-*'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      # github.sha is a built-in variable that contins the sha
+      run: docker build -t tasks-api:${{ github.sha }} .
+
+    
+    - name: Start API container
+      run: |
+        docker run -d \
+          --name tasks-container \
+          -p 5000:5000 \
+          tasks-api:${{ github.sha }}
+        
+        # Wait for API to be ready (adjust port if different)
+        echo "Waiting for API to be ready..."
+        timeout 60 bash -c 'until curl -f http://localhost:5000/health; do echo "Waiting..."; sleep 2; done'
+        echo "API is ready!"
+
+    - name: Test API Endpoints
+      run: |
+        # Test the GET /tasks endpoint to ensure it responds successfully (2xx)
+        echo "Testing GET /tasks..."
+        curl -f http://localhost:5000/tasks
+
+        # Prepare a unique task name and author to avoid duplicates in tests
+        TASK_NAME="ci-task-$(date +%s)"
+        AUTHOR="CI Bot"
+
+        # Send a POST request to create a new task with name and author
+        # Capture only the HTTP status code from the response
+        CREATE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+          -X POST -H "Content-Type: application/json" \
+          -d "{\"name\":\"${TASK_NAME}\",\"author\":\"${AUTHOR}\"}" \
+          http://localhost:5000/tasks)
+
+        # Print the HTTP status code received
+        echo "POST /tasks -> HTTP $CREATE_CODE"
+
+        # Fail the job if the status code is not 201 (Created)
+        [ "$CREATE_CODE" = "201" ] || { echo "Create failed (expected 201)"; exit 1; }
+
+    
+    - name: Show container logs (for debugging)
+      if: failure()
+      run: docker logs tasks-container
+    
+    - name: Stop and cleanup containers
+      if: always()
+      run: |
+        docker stop tasks-container || true
+        docker rm tasks-container || true
+    
+    - name: Tag image for potential deployment
+      if: github.ref == 'refs/heads/main'
+      run: |
+        docker tag tasks-api:${{ github.sha }} tasks-api:latest
+        echo "Image tagged as latest for main branch"
+
+  
