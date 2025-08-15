@@ -30,6 +30,30 @@ jobs:
         echo "Waiting for API to be ready..."
         timeout 60 bash -c 'until curl -f http://localhost:5000/health; do echo "Waiting..."; sleep 2; done'
         echo "API is ready!"
+
+    - name: Test API Endpoints
+      run: |
+        # Test the GET /tasks endpoint to ensure it responds successfully (2xx)
+        echo "Testing GET /tasks..."
+        curl -f http://localhost:5000/tasks
+
+        # Prepare a unique task name and author to avoid duplicates in tests
+        TASK_NAME="ci-task-$(date +%s)"
+        AUTHOR="CI Bot"
+
+        # Send a POST request to create a new task with name and author
+        # Capture only the HTTP status code from the response
+        CREATE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+          -X POST -H "Content-Type: application/json" \
+          -d "{\"name\":\"${TASK_NAME}\",\"author\":\"${AUTHOR}\"}" \
+          http://localhost:5000/tasks)
+
+        # Print the HTTP status code received
+        echo "POST /tasks -> HTTP $CREATE_CODE"
+
+        # Fail the job if the status code is not 201 (Created)
+        [ "$CREATE_CODE" = "201" ] || { echo "Create failed (expected 201)"; exit 1; }
+
     
     - name: Show container logs (for debugging)
       if: failure()
