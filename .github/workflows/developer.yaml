@@ -2,7 +2,14 @@
 name: Tasks API CI/CD
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:          # Allows manual trigger of the workflow from GitHub Actions UI
+    inputs:
+      deploy:                 # Input parameter that appears in the "Run workflow" dialog
+        description: "Push image to DockerHub?"   # Text shown in the UI to explain what this input does
+        required: true        # The user must provide a value (true/false) before running
+        type: boolean         # Defines the input as a boolean toggle (true/false)
+        default: false        # Default value is 'false' (so manual runs will not deploy unless explicitly chosen)
+        
   push:
     branches:
       - 'feature-*'   # Run workflow on pushes to any feature branch (CI)
