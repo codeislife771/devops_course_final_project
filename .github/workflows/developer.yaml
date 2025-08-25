@@ -64,10 +64,10 @@ jobs:
         docker rm tasks-container || true
     
     - name: Login to Docker Hub
-        if: github.ref == 'refs/heads/main'
-        run: echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_LOGIN_RUN }}" --password-stdin
-    - name: Push image (commit SHA)
+      if: github.ref == 'refs/heads/main'
+      run: echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_LOGIN_RUN }}" --password-stdin
 
+    - name: Push image (commit SHA)
       if: github.ref == 'refs/heads/main'
       run: docker push codeislife771/flask-task-manager:${{ github.sha }}
 
