@@ -16,6 +16,8 @@ provider "aws" {
 # Get available AZs
 data "aws_availability_zones" "available" {}
 
+data "aws_caller_identity" "current" {}
+
 # Minimal VPC
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
@@ -51,12 +53,36 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   control_plane_subnet_ids       = module.vpc.private_subnets
   cluster_endpoint_public_access = true
+  enable_irsa                    = true
+  authentication_mode = "API_AND_CONFIG_MAP"
 
   # Essential add-ons only
   cluster_addons = {
     coredns    = { most_recent = true }
     kube-proxy = { most_recent = true }
     vpc-cni    = { most_recent = true }
+  }
+
+  # Map your IAM identity to Kubernetes RBAC using EKS Access Entries.
+  # IMPORTANT: principal_arn must exactly match who runs kubectl.
+  # Run: aws sts get-caller-identity  -> copy the "Arn" and use it here (user or role).
+  access_entries = {
+    admin = {
+      # Example for an IAM User named "dan_user"
+      principal_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/dan_user"
+
+      policy_associations = {
+        admin = {
+          # Grant cluster-admin rights using EKS Cluster Access Policy (not generic IAM AdministratorAccess)
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+          # Cluster-wide access (you can restrict to specific namespaces later if needed)
+          access_scope = {
+            type       = "cluster"
+          }
+        }
+      }
+    }
   }
 
   eks_managed_node_groups = {
