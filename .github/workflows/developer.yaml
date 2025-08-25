@@ -3,8 +3,12 @@ name: Tasks API CI/CD
 
 on:
   push:
-    branches: 
-      - 'feature-*'
+    branches:
+      - 'feature-*'   # Run workflow on pushes to any feature branch (CI)
+      - 'main'        # Run workflow on pushes to main (after merge, for CD)
+  pull_request:
+    branches:
+      - main          # Run workflow on pull requests targeting main (PR checks)
 
 jobs:
   build-and-test:
