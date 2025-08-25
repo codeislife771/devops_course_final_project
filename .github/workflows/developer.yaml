@@ -15,16 +15,14 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Build Docker image
-      # github.sha is a built-in variable that contins the sha
-      run: docker build -t tasks-api:${{ github.sha }} .
-
+      run: docker build -t codeislife771/flask-task-manager:${{ github.sha }} .
     
     - name: Start API container
       run: |
         docker run -d \
           --name tasks-container \
           -p 5000:5000 \
-          tasks-api:${{ github.sha }}
+          codeislife771/flask-task-manager:${{ github.sha }}
         
         # Wait for API to be ready (adjust port if different)
         echo "Waiting for API to be ready..."
@@ -65,10 +63,16 @@ jobs:
         docker stop tasks-container || true
         docker rm tasks-container || true
     
-    - name: Tag image for potential deployment
+    - name: Login to Docker Hub
+      if: github.ref == 'refs/heads/main'
+      run: echo "${{ secrets.DOCKER_ACCESS_TOKEN }}" | docker login -u "${{ secrets.DOCKER_LOGIN_RUN }}" --password-stdin
+
+    - name: Push image (commit SHA)
+      if: github.ref == 'refs/heads/main'
+      run: docker push codeislife771/flask-task-manager:${{ github.sha }}
+
+    - name: Tag & push latest
       if: github.ref == 'refs/heads/main'
       run: |
-        docker tag tasks-api:${{ github.sha }} tasks-api:latest
-        echo "Image tagged as latest for main branch"
-
-  
+        docker tag codeislife771/flask-task-manager:${{ github.sha }} codeislife771/flask-task-manager:latest
+        docker push codeislife771/flask-task-manager:latest
