@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, redirect
 import json
 from datetime import datetime
+import uuid
 import os
 
 app = Flask(__name__)
@@ -40,33 +41,36 @@ def create_task():
     MAX_LENGTH = 100  # Maximum allowed length for task name and author
 
     data = request.get_json()  # Get JSON payload from the request
+    new_id = str(uuid.uuid4())
 
-    # Strip leading/trailing spaces from input fields
-    name = data.get('name', '').strip()
-    author = data.get('author', '').strip()
+    # # Strip leading/trailing spaces from input fields
+    # name = data.get('name', '').strip()
+    # author = data.get('author', '').strip()
 
-    # Check if name or author is missing or contains only spaces
-    if not name or not author:
-        return jsonify({'error': 'Invalid or missing task name or author'}), 400
+    # # Check if name or author is missing or contains only spaces
+    # if not name or not author:
+    #     return jsonify({'error': 'Invalid or missing task name or author'}), 400
 
-    # Check if name or author exceeds the allowed character limit
-    if len(name) > MAX_LENGTH or len(author) > MAX_LENGTH:
-        return jsonify({'error': 'Name or author too long'}), 400
+    # # Check if name or author exceeds the allowed character limit
+    # if len(name) > MAX_LENGTH or len(author) > MAX_LENGTH:
+    #     return jsonify({'error': 'Name or author too long'}), 400
 
     tasks = load_tasks()  # Load existing tasks from the JSON file
 
-    # Check if a task with the same (stripped) name already exists
-    if name in tasks:
-        return jsonify({'error': 'Duplicate task name'}), 400
+    # # Check if a task with the same (stripped) name already exists
+    # if name in tasks:
+    #     return jsonify({'error': 'Duplicate task name'}), 400
 
-    # Save the new task with current creation date
-    tasks[name] = {
-        'author': author,
-        'date_create': datetime.now().strftime('%Y-%m-%d')
-    }
+    # # Save the new task with current creation date
+    # tasks[name] = {
+    #     'author': author,
+    #     'date_create': datetime.now().strftime('%Y-%m-%d')
+    # }
+    tasks[new_id] = data
+    
 
-    save_tasks(tasks)  # Write updated tasks back to the file
-
+    # save_tasks(tasks)  # Write updated tasks back to the file
+    print('tasks:', tasks)
     return jsonify({'message': 'Task created'}), 201  # Success response with HTTP 201
 
 
