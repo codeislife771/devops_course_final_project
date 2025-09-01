@@ -323,10 +323,10 @@
                                     </div>
                                 </div>
                                 <div class="task-actions">
-                                    <button class="btn btn-warning" onclick="editTask('${taskUUID}')">
+                                    <button class="btn btn-warning" onclick="editTask('${taskUUID}', '${taskName}')">
                                         ✏️ Edit
                                     </button>
-                                    <button class="btn btn-danger" onclick="deleteTask('${taskUUID}')">
+                                    <button class="btn btn-danger" onclick="deleteTask('${taskUUID}', '${taskName}')">
                                         🗑️ Delete
                                     </button>
                                 </div>
@@ -354,7 +354,7 @@
             const name = document.getElementById('task-name').value.trim();
             const author = document.getElementById('task-author').value.trim();
 
-            if (!name || !author) return;
+            // if (!name || !author) return;
 
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
@@ -386,10 +386,11 @@
         });
 
         // Delete Task
-        function deleteTask(name) {
-            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+        function deleteTask(uuid,taskName) {
+            console.log('herre delete:', uuid,taskName)
+            if (!confirm(`Are you sure you want to delete "${taskName}"?`)) return;
 
-            fetch(`/tasks/${encodeURIComponent(name)}`, {
+            fetch(`/tasks/${encodeURIComponent(uuid)}`, {
                 method: 'DELETE'
             })
             .then(response => {
@@ -406,14 +407,13 @@
         }
 
         // Update Task
-        function editTask(name) {
-            const newAuthor = prompt(`Enter new author for "${name}":`, "");
-            if (!newAuthor || !newAuthor.trim()) return;
+        function editTask(uuid,taskName) {
+            const isNewTaskName = prompt(`Enter new Task Name for "${taskName}":`, "");
 
-            fetch(`/tasks/${encodeURIComponent(name)}`, {
+            fetch(`/tasks/${encodeURIComponent(uuid)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ author: newAuthor.trim() })
+                body: JSON.stringify({ name: taskName.trim() })
             })
             .then(response => {
                 if (response.ok) {

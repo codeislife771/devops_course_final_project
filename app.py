@@ -71,8 +71,9 @@ def update_task(uuid):
     tasks = load_tasks()
     if uuid not in tasks:
         return jsonify({'error': 'Task not found'}), 404
-
+    
     data = request.get_json()
+    print('herre', data)
     tasks[uuid]['author'] = data.get('author', tasks[uuid]['author'])
     save_tasks(tasks)
     return jsonify({'message': 'Task updated'}), 200
