@@ -91,10 +91,6 @@ def delete_task(name):
     else:
         return jsonify({'error': 'Task not found'}), 404
 
-@app.route('/health', methods=['GET'])
-def get_health():
-    return jsonify(status="ok"), 200
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
 
