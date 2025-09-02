@@ -290,12 +290,12 @@
 
             fetch('/api/tasks')
                 .then(response => response.json())
-                .then(data => {
+                .then(newTask => {
                     container.innerHTML = '';
                     
-                    const taskNames = Object.keys(data);
+                    const newTaskKeys = Object.keys(newTask);
                     
-                    if (taskNames.length === 0) {
+                    if (newTaskKeys.length === 0) {
                         container.innerHTML = `
                             <div class="empty-state">
                                 <div class="empty-state-icon">📝</div>
@@ -307,21 +307,26 @@
                     }
 
                     let html = '<ul class="task-list">';
-                    taskNames.forEach(taskName => {
-                        const task = data[taskName];
+                    newTaskKeys.forEach(taskUUID => {
+
+                        const taskDetails = newTask[taskUUID];
+                        const taskName = taskDetails['name'];
+                        const taskAuthor = taskDetails['author'];
+                        const taskDateCreate = taskDetails['task_date_create']
+
                         html += `
                             <li class="task-item">
                                 <div class="task-info">
                                     <div class="task-name">${taskName}</div>
                                     <div class="task-meta">
-                                        👤 ${task.author} • 📅 ${task.date_create}
+                                        👤 ${taskAuthor} • 📅 ${taskDateCreate}
                                     </div>
                                 </div>
                                 <div class="task-actions">
-                                    <button class="btn btn-warning" onclick="editTask('${taskName}')">
+                                    <button class="btn btn-warning" onclick="editTask('${taskUUID}', '${taskName}')">
                                         ✏️ Edit
                                     </button>
-                                    <button class="btn btn-danger" onclick="deleteTask('${taskName}')">
+                                    <button class="btn btn-danger" onclick="deleteTask('${taskUUID}', '${taskName}')">
                                         🗑️ Delete
                                     </button>
                                 </div>
@@ -349,7 +354,7 @@
             const name = document.getElementById('task-name').value.trim();
             const author = document.getElementById('task-author').value.trim();
 
-            if (!name || !author) return;
+            // if (!name || !author) return;
 
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
@@ -381,10 +386,10 @@
         });
 
         // Delete Task
-        function deleteTask(name) {
-            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+        function deleteTask(uuid,taskName) {
+            if (!confirm(`Are you sure you want to delete "${taskName}"?`)) return;
 
-            fetch(`/tasks/${encodeURIComponent(name)}`, {
+            fetch(`/tasks/${encodeURIComponent(uuid)}`, {
                 method: 'DELETE'
             })
             .then(response => {
@@ -401,17 +406,16 @@
         }
 
         // Update Task
-        function editTask(name) {
-            const newAuthor = prompt(`Enter new author for "${name}":`, "");
-            if (!newAuthor || !newAuthor.trim()) return;
+        function editTask(uuid,taskName) {
+            const isNewTaskName = prompt(`Enter new Task Name for "${taskName}":`, "");
 
-            fetch(`/tasks/${encodeURIComponent(name)}`, {
+            fetch(`/tasks/${encodeURIComponent(uuid)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ author: newAuthor.trim() })
+                body: JSON.stringify({ name: isNewTaskName.trim() })
             })
             .then(response => {
-                if (response.ok) {
+                if (response.ok) {  
                     loadTasks();
                 } else {
                     throw new Error('Failed to update task');

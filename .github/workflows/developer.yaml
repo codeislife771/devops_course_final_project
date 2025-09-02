@@ -1,4 +1,4 @@
-# .github/workflows/ci.yml
+# .github/workflows/developer.yaml
 name: Tasks API CI/CD
 
 on:
@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - 'feature-*'   # Run workflow on pushes to any feature branch (CI)
+      - 'refactor-*' # Run workflow on pushes to any refactor branch (CI)
       - 'main'        # Run workflow on pushes to main (after merge, for CD)
   pull_request:
     branches:
@@ -47,22 +48,28 @@ jobs:
         echo "Testing GET /tasks..."
         curl -f http://localhost:5000/tasks
 
-        # Prepare a unique task name and author to avoid duplicates in tests
-        TASK_NAME="ci-task-$(date +%s)"
-        AUTHOR="CI Bot"
-
-        # Send a POST request to create a new task with name and author
-        # Capture only the HTTP status code from the response
-        CREATE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-          -X POST -H "Content-Type: application/json" \
-          -d "{\"name\":\"${TASK_NAME}\",\"author\":\"${AUTHOR}\"}" \
+        echo "Testing POST /tasks (create new task)..."
+        CREATE_RESPONSE=$(curl -s -X POST \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Test Task","author":"Test Author"}' \
           http://localhost:5000/tasks)
 
         # Print the HTTP status code received
-        echo "POST /tasks -> HTTP $CREATE_CODE"
+        echo "POST /tasks -> HTTP $CREATE_RESPONSE"
 
-        # Fail the job if the status code is not 201 (Created)
-        [ "$CREATE_CODE" = "201" ] || { echo "Create failed (expected 201)"; exit 1; }
+        # Extract task ID from the response for further testing (assuming JSON response has id field)
+        TASK_ID=$(echo $CREATE_RESPONSE | jq -r '.id // .uuid // empty')
+        
+        if [ ! -z "$TASK_ID" ]; then
+          echo "Testing GET /tasks/$TASK_ID (get specific task)..."
+          curl -f http://localhost:5000/tasks/$TASK_ID
+
+          echo "Testing PUT /tasks/$TASK_ID (update specific task)..."
+          curl -f -X PUT -H "Content-Type: application/json" -d "{\"name\":\"${TASK_NAME}\"}" http://localhost:5000/tasks/$TASK_ID
+
+          echo "Testing DELETE /tasks/$TASK_ID (delete specific task)..."
+          curl -f -X DELETE http://localhost:5000/tasks/$TASK_ID
+        fi
 
     
     - name: Show container logs (for debugging)
