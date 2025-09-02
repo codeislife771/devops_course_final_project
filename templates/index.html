@@ -387,7 +387,6 @@
 
         // Delete Task
         function deleteTask(uuid,taskName) {
-            console.log('herre delete:', uuid,taskName)
             if (!confirm(`Are you sure you want to delete "${taskName}"?`)) return;
 
             fetch(`/tasks/${encodeURIComponent(uuid)}`, {
@@ -413,10 +412,10 @@
             fetch(`/tasks/${encodeURIComponent(uuid)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: taskName.trim() })
+                body: JSON.stringify({ name: isNewTaskName.trim() })
             })
             .then(response => {
-                if (response.ok) {
+                if (response.ok) {  
                     loadTasks();
                 } else {
                     throw new Error('Failed to update task');

@@ -73,9 +73,9 @@ def update_task(uuid):
         return jsonify({'error': 'Task not found'}), 404
     
     data = request.get_json()
-    print('herre', data)
-    tasks[uuid]['author'] = data.get('author', tasks[uuid]['author'])
+    tasks[uuid]['name'] = data.get('name', tasks[uuid]['name'])    
     save_tasks(tasks)
+    
     return jsonify({'message': 'Task updated'}), 200
 
 @app.route('/tasks/<uuid>', methods=['DELETE'])
