@@ -42,28 +42,28 @@ def create_task():
 
     new_task = request.get_json()  # Get JSON payload from the request
     new_id = str(uuid.uuid4())
+    
+    if not new_task.get('name') or not new_task.get('author'):
+        return jsonify({'error': 'Missing task name or author'}), 400
+    
     # Strip leading/trailing spaces from input fields
     name = new_task.get('name', '').strip()
     author = new_task.get('author', '').strip()
-    # Check if name or author is missing or contains only spaces
-    if not name:
-        return jsonify({'error': 'Invalid or missing task name or author'}), 400
 
     # Check if name or author exceeds the allowed character limit
     if len(name) > MAX_LENGTH or len(author) > MAX_LENGTH:
         return jsonify({'error': 'Name or author too long'}), 400
 
     tasks = load_tasks()  # Load existing tasks from the JSON file
-
-    # Check if a task with the same (stripped) name already exists
-    if name in tasks:
-        return jsonify({'error': 'Duplicate task name'}), 400
-
+    
     new_task['task_date_create'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    new_task['uuid'] = new_id
     tasks[new_id] = new_task
-
+    
     save_tasks(tasks)  # Write updated tasks back to the file
-    return jsonify({'message': 'Task created'}), 201  # Success response with HTTP 201
+    # # return response
+    return jsonify(new_id)
+
 
 
 @app.route('/tasks/<uuid>', methods=['PUT'])
