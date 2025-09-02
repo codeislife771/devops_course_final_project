@@ -62,7 +62,8 @@ def create_task():
     
     save_tasks(tasks)  # Write updated tasks back to the file
     # # return response
-    return jsonify(new_id), 201
+    return jsonify({"uuid": new_id}), 201
+
 
 
 
