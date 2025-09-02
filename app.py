@@ -64,7 +64,12 @@ def create_task():
     # # return response
     return jsonify({"uuid": new_id}), 201
 
-
+@app.route('/tasks/<uuid>', methods=['GET'])
+def get_task(uuid):
+    tasks = load_tasks()
+    if uuid not in tasks:
+        return jsonify({'error': 'Task not found'}), 404
+    return jsonify(tasks[uuid])
 
 
 @app.route('/tasks/<uuid>', methods=['PUT'])
@@ -77,7 +82,7 @@ def update_task(uuid):
     tasks[uuid]['name'] = data.get('name', tasks[uuid]['name'])    
     save_tasks(tasks)
     
-    return jsonify({'message': 'Task updated'}), 200
+    return jsonify({"uuid": uuid}), 200
 
 @app.route('/tasks/<uuid>', methods=['DELETE'])
 def delete_task(uuid):
@@ -85,7 +90,7 @@ def delete_task(uuid):
     if uuid in tasks:
         del tasks[uuid]
         save_tasks(tasks)
-        return jsonify({'message': 'Task deleted'}), 200
+        return jsonify({"uuid": uuid}), 200
     else:
         return jsonify({'error': 'Task not found'}), 404
 
