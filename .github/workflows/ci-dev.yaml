@@ -1,0 +1,89 @@
+name: Tasks CI (Dev/Feature)
+
+on:
+  push:
+    branches:
+      - 'feature-*'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: docker build -t codeislife771/flask-task-manager:${{ github.sha }} .
+    
+    - name: Start API container
+      run: |
+        docker run -d \
+          --name tasks-container \
+          -p 5000:5000 \
+          codeislife771/flask-task-manager:${{ github.sha }}
+        
+        # Wait for API to be ready (adjust port if different)
+        echo "Waiting for API to be ready..."
+        timeout 60 bash -c 'until curl -f http://localhost:5000/health; do echo "Waiting..."; sleep 2; done'
+        echo "API is ready!"
+
+    - name: Test API Endpoints
+      run: |
+        # Test the GET /tasks endpoint to ensure it responds successfully 
+        echo "Testing GET /tasks..."
+        curl -f http://localhost:5000/tasks
+
+        echo "Testing POST /tasks (create new task)..."
+        CREATE_RESPONSE=$(curl -s -X POST \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Test Task","author":"Test Author"}' \
+          http://localhost:5000/tasks)
+
+        # Print the HTTP status code received
+        echo "POST /tasks -> HTTP $CREATE_RESPONSE"
+
+        # Extract task ID from the response for further testing (assuming JSON response has id field)
+        TASK_ID=$(echo $CREATE_RESPONSE | jq -r '.id // .uuid // empty')
+        
+        if [ ! -z "$TASK_ID" ]; then
+          echo "Testing GET /tasks/$TASK_ID (get specific task)..."
+          curl -f http://localhost:5000/tasks/$TASK_ID
+
+          echo "Testing PUT /tasks/$TASK_ID (update specific task)..."
+          TASK_NAME="Updated Task Name"
+          TASK_AUTHOR="CI Bot" 
+          curl -f -X PUT -H "Content-Type: application/json" -d "{\"name\":\"${TASK_NAME}\", \"author\":\"${TASK_AUTHOR}\"}" http://localhost:5000/tasks/$TASK_ID
+
+          echo "Testing DELETE /tasks/$TASK_ID (delete specific task)..."
+          curl -f -X DELETE http://localhost:5000/tasks/$TASK_ID
+        fi
+
+    
+    - name: Show container logs (for debugging)
+      if: failure()
+      run: docker logs tasks-container
+    
+    - name: Stop and cleanup containers
+      if: always()
+      run: |
+        docker stop tasks-container || true
+        docker rm tasks-container || true
+    
+    # Login step (only on push to main)
+    - name: Login to Docker Hub
+      if: github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_LOGIN_RUN }}
+        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+    - name: Push image (commit SHA)
+      if: github.ref == 'refs/heads/main'
+      run: docker push codeislife771/flask-task-manager:${{ github.sha }}
+
+    - name: Tag & push latest
+      if: github.ref == 'refs/heads/main'
+      run: |
+        docker tag codeislife771/flask-task-manager:${{ github.sha }} codeislife771/flask-task-manager:latest
+        docker push codeislife771/flask-task-manager:latest
