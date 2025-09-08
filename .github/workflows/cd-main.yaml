@@ -1,24 +1,9 @@
-# .github/workflows/developer.yaml
-name: Tasks API CI/CD
 
+name: Task CD (Main Deploy)
 on:
-  workflow_dispatch:          # Allows manual trigger of the workflow from GitHub Actions UI
-    inputs:
-      deploy:                 # Input parameter that appears in the "Run workflow" dialog
-        description: "Push image to DockerHub?"   # Text shown in the UI to explain what this input does
-        required: true        # The user must provide a value (true/false) before running
-        type: boolean         # Defines the input as a boolean toggle (true/false)
-        default: false        # Default value is 'false' (so manual runs will not deploy unless explicitly chosen)
-        
   push:
     branches:
-      - 'feature-*'   # Run workflow on pushes to any feature branch (CI)
-      - 'refactor-*' # Run workflow on pushes to any refactor branch (CI)
-      - 'main'        # Run workflow on pushes to main (after merge, for CD)
-      - 'build-*'
-  pull_request:
-    branches:
-      - main          # Run workflow on pull requests targeting main (PR checks)
+      - 'main'
 
 jobs:
   build-and-test:
@@ -45,7 +30,7 @@ jobs:
 
     - name: Test API Endpoints
       run: |
-        # Test the GET /tasks endpoint to ensure it responds successfully (2xx)
+        # Test the GET /tasks endpoint to ensure it responds successfully 
         echo "Testing GET /tasks..."
         curl -f http://localhost:5000/tasks
 
@@ -66,7 +51,9 @@ jobs:
           curl -f http://localhost:5000/tasks/$TASK_ID
 
           echo "Testing PUT /tasks/$TASK_ID (update specific task)..."
-          curl -f -X PUT -H "Content-Type: application/json" -d "{\"name\":\"${TASK_NAME}\"}" http://localhost:5000/tasks/$TASK_ID
+          TASK_NAME="Updated Task Name"
+          TASK_AUTHOR="CI Bot" 
+          curl -f -X PUT -H "Content-Type: application/json" -d "{\"name\":\"${TASK_NAME}\", \"author\":\"${TASK_AUTHOR}\"}" http://localhost:5000/tasks/$TASK_ID
 
           echo "Testing DELETE /tasks/$TASK_ID (delete specific task)..."
           curl -f -X DELETE http://localhost:5000/tasks/$TASK_ID
@@ -85,18 +72,18 @@ jobs:
     
     # Login step (only on push to main)
     - name: Login to Docker Hub
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main'
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_LOGIN_RUN }}
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
     - name: Push image (commit SHA)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main'
       run: docker push codeislife771/flask-task-manager:${{ github.sha }}
 
     - name: Tag & push latest
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main'
       run: |
         docker tag codeislife771/flask-task-manager:${{ github.sha }} codeislife771/flask-task-manager:latest
         docker push codeislife771/flask-task-manager:latest
