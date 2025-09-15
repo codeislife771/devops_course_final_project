@@ -1,0 +1,25 @@
+name: Task CD (Main Deploy)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Docker login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_LOGIN_RUN }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+      - name: Build Docker image (by SHA)
+        run: docker build -t codeislife771/flask-task-manager:${{ github.sha }} .
+
+      - name: Push image (by SHA)
+        run: docker push codeislife771/flask-task-manager:${{ github.sha }}
