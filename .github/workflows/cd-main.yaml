@@ -1,9 +1,9 @@
-name: Tasks CI (Dev/Feature)
 
+name: Task CD (Main Deploy)
 on:
   push:
     branches:
-      - 'feature-*'
+      - 'main'
 
 jobs:
   build-and-test:
@@ -12,12 +12,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: pip install -r requirements.txt
-
-    - name: Run unit tests
-      run: python3 -m unittest test_tasks.py
     
     - name: Build Docker image
       run: docker build -t codeislife771/flask-task-manager:${{ github.sha }} .
