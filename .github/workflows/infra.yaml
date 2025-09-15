@@ -1,0 +1,44 @@
+name: Infra (Plan/Apply/Destroy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+      dir:
+        default: terraform
+
+jobs:
+  tf:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.dir }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: terraform init
+        run: terraform init -input=false
+
+      - name: terraform plan
+        if: inputs.action == 'plan'
+        run: terraform plan
+
+      - name: terraform apply
+        if: inputs.action == 'apply'
+        run: terraform apply
+
+      - name: terraform destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy
