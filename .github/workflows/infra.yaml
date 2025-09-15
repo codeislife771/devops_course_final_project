@@ -36,6 +36,33 @@ jobs:
           name: tfstate
           path: ${{ inputs.dir }}
 
+      # --- Simple Kubernetes cleanup before Terraform destroy ---
+      - name: Install kubectl (only for destroy)
+        if: inputs.action == 'destroy'
+        uses: azure/setup-kubectl@v4
+
+      - name: Connect kubectl to EKS (only for destroy)
+        if: inputs.action == 'destroy'
+        run: |
+          # Required: point kubectl at your EKS cluster
+          aws eks update-kubeconfig --name "${{ vars.EKS_CLUSTER_NAME }}" --region "${{ vars.AWS_REGION }}"
+
+      - name: Undeploy app (only for destroy)
+        if: inputs.action == 'destroy'
+        run: |
+          # Delete the LoadBalancer Service in AWS
+          kubectl delete service flask-service --ignore-not-found
+
+          # Small wait so AWS starts releasing network resources
+          sleep 20
+
+          # Removes Deployments/ConfigMaps/etc. created from deploy/ - delete the same manifests you applied earlier
+          kubectl delete -f deploy/ --ignore-not-found
+
+          # Optional: show any remaining LoadBalancer Services (empty = clean)
+          kubectl get svc -A | (grep LoadBalancer || true)
+      # --- end of Kubernetes cleanup ---
+
       - name: terraform init
         run: terraform init -input=false
 
