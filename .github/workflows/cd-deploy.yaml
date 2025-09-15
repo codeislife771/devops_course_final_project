@@ -23,3 +23,42 @@ jobs:
 
       - name: Push image (by SHA)
         run: docker push codeislife771/flask-task-manager:${{ github.sha }}
+
+  deploy:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout manifests
+        uses: actions/checkout@v4
+
+      - name: AWS auth
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Connect kubectl to EKS
+        id: eks
+        continue-on-error: true
+        run: |
+          aws eks update-kubeconfig --name "${{ secrets.EKS_CLUSTER_NAME }}" --region "${{ secrets.AWS_REGION }}"
+          kubectl get nodes
+
+      - name: Apply k8s manifests (default namespace)
+        if: steps.eks.outcome == 'success'
+        run: kubectl apply -f deploy/
+
+      - name: Rollout new image (by SHA)
+        if: steps.eks.outcome == 'success'
+        run: |
+          kubectl set image deployment/flask-deployment \
+            flask=codeislife771/flask-task-manager:${{ github.sha }}
+          kubectl rollout status deployment/flask-deployment --timeout=180s
+
+      - name: Show LoadBalancer hostname
+        if: steps.eks.outcome == 'success'
+        run: echo $(kubectl get svc flask-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
