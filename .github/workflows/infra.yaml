@@ -33,11 +33,11 @@ jobs:
 
       - name: terraform plan
         if: inputs.action == 'plan'
-        run: terraform plan -auto-approve # Run without waiting for manual 'yes' approval in GitHub Actions
+        run: terraform plan 
 
       - name: terraform apply
         if: inputs.action == 'apply'
-        run: terraform apply
+        run: terraform apply -auto-approve # Run without waiting for manual 'yes' approval in GitHub Actions
 
       - name: terraform destroy
         if: inputs.action == 'destroy'
