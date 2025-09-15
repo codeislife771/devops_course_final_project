@@ -28,17 +28,36 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
 
+      # Return of state before destroy
+      - name: Restore tfstate (only for destroy)
+        if: inputs.action == 'destroy'
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate
+          path: ${{ inputs.dir }}
+
       - name: terraform init
         run: terraform init -input=false
 
       - name: terraform plan
         if: inputs.action == 'plan'
-        run: terraform plan 
+        run: terraform plan
 
       - name: terraform apply
         if: inputs.action == 'apply'
-        run: terraform apply -auto-approve # Run without waiting for manual 'yes' approval in GitHub Actions
+        run: terraform apply -auto-approve
+
+      # שמירת ה-state אחרי apply
+      - name: Save tfstate (only for apply)
+        if: inputs.action == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate
+          path: |
+            ${{ inputs.dir }}/terraform.tfstate
+            ${{ inputs.dir }}/terraform.tfstate.backup
+          retention-days: 14
 
       - name: terraform destroy
         if: inputs.action == 'destroy'
-        run: terraform destroy
+        run: terraform destroy -auto-approve
