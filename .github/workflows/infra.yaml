@@ -4,13 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: What to run
+        description: "What to run"
         required: true
         type: choice
-        options: [plan, apply, destroy]
+        options:
+          - plan
+          - apply
+          - destroy
         default: plan
       dir:
-        description: Terraform working directory
+        description: "Terraform working directory"
         required: false
         default: terraform
 
@@ -37,27 +40,27 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfstate
-          path: terraform
+          path: ${{ github.event.inputs.dir }}
         continue-on-error: true
 
       # Optional sanity — helps ensure state is loaded before destroy
       - name: Sanity: terraform state list
-        working-directory: terraform
+        working-directory: ${{ github.event.inputs.dir }}
         run: terraform state list || true
 
       # --- K8s cleanup (destroy only) ---
       - name: Install kubectl (only for destroy)
-        if: inputs.action == 'destroy'
+        if: ${{ github.event.inputs.action == 'destroy' }}
         uses: azure/setup-kubectl@v4
 
       - name: Connect kubectl to EKS (only for destroy)
-        if: inputs.action == 'destroy'
+        if: ${{ github.event.inputs.action == 'destroy' }}
         run: |
           set -e
           aws eks update-kubeconfig --name "${{ vars.EKS_CLUSTER_NAME }}" --region "${{ vars.AWS_REGION }}"
 
       - name: Undeploy app (only for destroy)
-        if: inputs.action == 'destroy'
+        if: ${{ github.event.inputs.action == 'destroy' }}
         run: |
           # If the cluster/context does not exist, skip gracefully
           set +e
@@ -72,34 +75,34 @@ jobs:
           set -e
       # --- end K8s cleanup ---
 
-      # Terraform steps (run inside terraform/)
+      # Terraform steps (run inside selected dir)
       - name: terraform init
-        working-directory: terraform
+        working-directory: ${{ github.event.inputs.dir }}
         run: terraform init -input=false
 
       - name: terraform plan
-        if: inputs.action == 'plan'
-        working-directory: terraform
+        if: ${{ github.event.inputs.action == 'plan' }}
+        working-directory: ${{ github.event.inputs.dir }}
         run: terraform plan -input=false
 
       - name: terraform apply
-        if: inputs.action == 'apply'
-        working-directory: terraform
+        if: ${{ github.event.inputs.action == 'apply' }}
+        working-directory: ${{ github.event.inputs.dir }}
         run: terraform apply -auto-approve -input=false
 
       - name: terraform destroy
-        if: inputs.action == 'destroy'
-        working-directory: terraform
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        working-directory: ${{ github.event.inputs.dir }}
         run: terraform destroy -auto-approve -input=false
 
       # Always save tfstate at the end so the next run has continuity
       - name: Save tfstate (always)
-        if: always()
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: tfstate
           path: |
-            terraform/terraform.tfstate
-            terraform/terraform.tfstate.backup
+            ${{ github.event.inputs.dir }}/terraform.tfstate
+            ${{ github.event.inputs.dir }}/terraform.tfstate.backup
           if-no-files-found: ignore
           retention-days: 14
