@@ -35,13 +35,29 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Always try to restore previous state (plan/apply/destroy). If none exists, don't fail.
-      - name: Restore tfstate (all actions)
-        uses: actions/download-artifact@v4
+      # Restore tfstate (from previous run) using dawidd6 action (can fetch from past runs)
+      - name: Restore tfstate (from previous run)
+        uses: dawidd6/action-download-artifact@v2
         with:
-          name: tfstate
-          path: ${{ github.event.inputs.dir }}
+          workflow: "Infra (Plan/Apply/Destroy)"   # exact name of the workflow that produced the artifact
+          name: tfstate                            # artifact name to fetch
+          branch: main                             # branch where the artifact was produced (adjust if needed)
+          path: ${{ github.event.inputs.dir }}     # extract into the TF working dir
         continue-on-error: true
+
+      # Quick check to see if terraform.tfstate exists and is readable
+      - name: Verify tfstate presence
+        working-directory: ${{ github.event.inputs.dir }}
+        run: |
+          echo "Listing files in $(pwd):"
+          ls -la || true
+          if [ -f "terraform.tfstate" ]; then
+            echo "Found terraform.tfstate"
+            echo "terraform state list (if backend is local):"
+            terraform state list || true
+          else
+            echo "terraform.tfstate NOT found (destroy may find nothing to do unless using remote backend)."
+          fi
 
       # --- K8s cleanup (destroy only) ---
       - name: Install kubectl (only for destroy)
