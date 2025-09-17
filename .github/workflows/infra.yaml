@@ -7,15 +7,17 @@ on:
         description: "What to run"
         required: true
         type: choice
-        options:
-          - plan
-          - apply
-          - destroy
+        options: [plan, apply, destroy]
         default: plan
       dir:
         description: "Terraform working directory"
         required: false
         default: terraform
+
+# Permissions are required to read artifacts from previous workflow runs
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   tf:
@@ -35,17 +37,33 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Restore tfstate (from previous run) using dawidd6 action (can fetch from past runs)
+      # Restore tfstate from a previous successful run of this workflow file.
+      # IMPORTANT: The 'workflow' value must be the exact path to this file.
       - name: Restore tfstate (from previous run)
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v6
         with:
-          workflow: "Infra (Plan/Apply/Destroy)"   # exact name of the workflow that produced the artifact
-          name: tfstate                            # artifact name to fetch
-          branch: main                             # branch where the artifact was produced (adjust if needed)
-          path: ${{ github.event.inputs.dir }}     # extract into the TF working dir
+          workflow: .github/workflows/infra.yaml   # exact workflow file path
+          name: tfstate                            # artifact name produced below
+          branch: main                             # change if your artifact was produced on a different branch
+          path: ${{ github.event.inputs.dir }}     # extract into the TF working dir (e.g., terraform/)
+          if_no_artifact_found: warn
         continue-on-error: true
 
-      # Quick check to see if terraform.tfstate exists and is readable
+      # Optional fallback: try to fetch the latest successful artifact on the branch,
+      # even if it's from a different workflow file (useful if the exact file changed).
+      - name: Restore tfstate (fallback: latest successful on branch)
+        if: steps.restore_from_previous_run.outcome == 'failure' || steps.restore_from_previous_run.outcome == 'cancelled' || steps.restore_from_previous_run.outcome == 'skipped'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow_conclusion: success
+          name: tfstate
+          branch: main
+          path: ${{ github.event.inputs.dir }}
+          if_no_artifact_found: warn
+        continue-on-error: true
+        id: restore_fallback
+
+      # Quick check to confirm whether terraform.tfstate is present before init/destroy
       - name: Verify tfstate presence
         working-directory: ${{ github.event.inputs.dir }}
         run: |
@@ -53,10 +71,9 @@ jobs:
           ls -la || true
           if [ -f "terraform.tfstate" ]; then
             echo "Found terraform.tfstate"
-            echo "terraform state list (if backend is local):"
             terraform state list || true
           else
-            echo "terraform.tfstate NOT found (destroy may find nothing to do unless using remote backend)."
+            echo "terraform.tfstate NOT found (destroy will likely do nothing unless you use a remote backend)."
           fi
 
       # --- K8s cleanup (destroy only) ---
@@ -86,7 +103,7 @@ jobs:
           set -e
       # --- end K8s cleanup ---
 
-      # Terraform steps (run inside selected dir)
+      # Terraform steps
       - name: terraform init
         working-directory: ${{ github.event.inputs.dir }}
         run: terraform init -input=false
@@ -106,7 +123,7 @@ jobs:
         working-directory: ${{ github.event.inputs.dir }}
         run: terraform destroy -auto-approve -input=false
 
-      # Always save tfstate at the end so the next run has continuity
+      # Always upload tfstate at the end so the next run can restore it
       - name: Save tfstate (always)
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
