@@ -43,11 +43,6 @@ jobs:
           path: ${{ github.event.inputs.dir }}
         continue-on-error: true
 
-      # Optional sanity — helps ensure state is loaded before destroy
-      - name: "Sanity: terraform state list"
-        working-directory: ${{ github.event.inputs.dir }}
-        run: terraform state list || truegit 
-
       # --- K8s cleanup (destroy only) ---
       - name: Install kubectl (only for destroy)
         if: ${{ github.event.inputs.action == 'destroy' }}
