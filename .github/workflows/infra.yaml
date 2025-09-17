@@ -20,6 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Configure AWS credentials for the job
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -28,15 +29,17 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
 
-      # Return of state before destroy
-      - name: Restore tfstate (only for destroy)
-        if: inputs.action == 'destroy'
+      # Always try to restore tfstate at the start (plan/apply/destroy).
+      # If no artifact exists yet (first run), don't fail the job.
+      - name: Restore tfstate (all actions)
         uses: actions/download-artifact@v4
         with:
           name: tfstate
           path: ${{ inputs.dir }}
+        continue-on-error: true
 
       # --- Simple Kubernetes cleanup before Terraform destroy ---
+      # Optional cleanup before destroy: remove K8s resources that may hold AWS LBs/ENIs
       - name: Install kubectl (only for destroy)
         if: inputs.action == 'destroy'
         uses: azure/setup-kubectl@v4
@@ -44,47 +47,41 @@ jobs:
       - name: Connect kubectl to EKS (only for destroy)
         if: inputs.action == 'destroy'
         run: |
-          # Required: point kubectl at your EKS cluster
           aws eks update-kubeconfig --name "${{ vars.EKS_CLUSTER_NAME }}" --region "${{ vars.AWS_REGION }}"
 
       - name: Undeploy app (only for destroy)
         if: inputs.action == 'destroy'
         run: |
-          # Delete the LoadBalancer Service in AWS
           kubectl delete service flask-service --ignore-not-found
-
-          # Small wait so AWS starts releasing network resources
           sleep 20
-
-          # Removes Deployments/ConfigMaps/etc. created from deploy/ - delete the same manifests you applied earlier
           kubectl delete -f deploy/ --ignore-not-found
-
-          # Optional: show any remaining LoadBalancer Services (empty = clean)
           kubectl get svc -A | (grep LoadBalancer || true)
       # --- end of Kubernetes cleanup ---
 
+      # Terraform workflow
       - name: terraform init
         run: terraform init -input=false
 
       - name: terraform plan
         if: inputs.action == 'plan'
-        run: terraform plan
+        run: terraform plan -input=false
 
       - name: terraform apply
         if: inputs.action == 'apply'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -input=false
 
-      # שמירת ה-state אחרי apply
-      - name: Save tfstate (only for apply)
-        if: inputs.action == 'apply'
+      - name: terraform destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -input=false
+
+      # Always save tfstate at the end (even on failure) so next run has continuity.
+      - name: Save tfstate (always)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tfstate
           path: |
             ${{ inputs.dir }}/terraform.tfstate
             ${{ inputs.dir }}/terraform.tfstate.backup
+          if-no-files-found: ignore
           retention-days: 14
-
-      - name: terraform destroy
-        if: inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
