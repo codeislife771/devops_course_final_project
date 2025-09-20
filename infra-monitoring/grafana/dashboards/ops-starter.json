@@ -1,0 +1,224 @@
+{
+  "id": null,
+  "uid": "ops-starter",
+  "title": "Ops Starter",
+  "tags": ["starter", "node", "blackbox"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Node instance",
+        "type": "query",
+        "datasource": null,
+        "query": "label_values(node_uname_info, instance)",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "bb_instance",
+        "label": "Blackbox target",
+        "type": "query",
+        "datasource": null,
+        "query": "label_values(probe_success{job=\"blackbox_http\"}, instance)",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU Usage (%)",
+      "id": 101,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\",instance=~\"$instance\"}[5m])) * 100)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "type": "gauge",
+      "title": "Memory Usage (%)",
+      "id": 102,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "(1 - (node_memory_MemAvailable_bytes{instance=~\"$instance\"} / node_memory_MemTotal_bytes{instance=~\"$instance\"})) * 100" }
+      ],
+      "fieldConfig": {
+        "defaults": { "min": 0, "max": 100, "unit": "percent" },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Load Average (1m / cores)",
+      "id": 103,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "node_load1{instance=~\"$instance\"} / count by (instance) (node_cpu_seconds_total{mode=\"idle\",instance=~\"$instance\"})" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 7 }
+    },
+    {
+      "type": "stat",
+      "title": "Uptime (days)",
+      "id": 104,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "(time() - node_boot_time_seconds{instance=~\"$instance\"}) / 86400" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "d" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 7 }
+    },
+    {
+      "type": "stat",
+      "title": "Processes: running / blocked",
+      "id": 105,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "node_procs_running{instance=~\"$instance\"}" },
+        { "refId": "B", "expr": "node_procs_blocked{instance=~\"$instance\"}" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 7 }
+    },
+    {
+      "type": "stat",
+      "title": "Mem Available (GiB)",
+      "id": 106,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "node_memory_MemAvailable_bytes{instance=~\"$instance\"} / 1024^3" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "gbytes" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 7 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk Usage per Filesystem (%)",
+      "id": 107,
+      "datasource": null,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * (1 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",instance=~\"$instance\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",instance=~\"$instance\"}))"
+        }
+      ],
+      "legend": { "showLegend": true },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 13 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk Free per Filesystem (GiB)",
+      "id": 108,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",instance=~\"$instance\"} / 1024^3" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "gbytes" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 13 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network RX/TX (bytes/s)",
+      "id": 109,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "sum by (instance) (rate(node_network_receive_bytes_total{device!=\"lo\",instance=~\"$instance\"}[5m]))" },
+        { "refId": "B", "expr": "sum by (instance) (rate(node_network_transmit_bytes_total{device!=\"lo\",instance=~\"$instance\"}[5m]))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 20 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network Errors (rx+tx /s)",
+      "id": 110,
+      "datasource": null,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance) ( rate(node_network_receive_errs_total{device!=\"lo\",instance=~\"$instance\"}[5m]) + rate(node_network_transmit_errs_total{device!=\"lo\",instance=~\"$instance\"}[5m]) )"
+        }
+      ],
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 20 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk I/O (read/write bytes/s)",
+      "id": 111,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "sum by (instance) (rate(node_disk_read_bytes_total{instance=~\"$instance\"}[5m]))" },
+        { "refId": "B", "expr": "sum by (instance) (rate(node_disk_written_bytes_total{instance=~\"$instance\"}[5m]))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 27 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Blackbox: Probe Success (1/0)",
+      "id": 201,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "probe_success{job=\"blackbox_http\",instance=~\"$bb_instance\"}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bool" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 34 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Blackbox: HTTP Status Code",
+      "id": 202,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "probe_http_status_code{job=\"blackbox_http\",instance=~\"$bb_instance\"}" }
+      ],
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 34 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Blackbox: Probe Duration (s)",
+      "id": 203,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "probe_duration_seconds{job=\"blackbox_http\",instance=~\"$bb_instance\"}" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 34 }
+    },
+    {
+      "type": "stat",
+      "title": "Blackbox: TLS days to expire",
+      "id": 204,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "(probe_ssl_earliest_cert_expiry{job=\"blackbox_http\",instance=~\"$bb_instance\"} - time()) / 86400" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "d" }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 40 }
+    },
+    {
+      "type": "stat",
+      "title": "Blackbox: Last Failure (text)",
+      "id": 205,
+      "datasource": null,
+      "targets": [
+        { "refId": "A", "expr": "probe_failure{job=\"blackbox_http\",instance=~\"$bb_instance\"}" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "gridPos": { "h": 6, "w": 10, "x": 6, "y": 40 }
+    }
+  ]
+}

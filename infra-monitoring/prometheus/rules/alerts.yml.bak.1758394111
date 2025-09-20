@@ -1,0 +1,65 @@
+groups:
+  - name: infra-alerts
+    rules:
+      # ===== Availability / Infra =====
+      # node_exporter לא נגיש (השרת או היצואן למטה)
+      - alert: NodeDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node is DOWN ({{ $labels.instance }})"
+          description: "Prometheus cannot scrape node_exporter for >2m"
+
+      # ===== Host health (node_exporter) =====
+      # CPU > 80% ל-5 דקות
+      - alert: HighCPU
+        expr: (100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: "CPU usage > 80% for 5m"
+
+      # זיכרון > 90% ל-5 דקות
+      - alert: HighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory on {{ $labels.instance }}"
+          description: "Memory usage > 90% for 5m"
+
+      # דיסק > 85% ל-10 דקות (מסנן tmpfs/overlay)
+      - alert: LowDiskSpace
+        expr: 100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk nearly full on {{ $labels.instance }}"
+          description: "Filesystem usage > 85% for 10m"
+
+      # ===== External (blackbox) =====
+      # היעד שנבדק מבחוץ לא זמין
+      - alert: BlackboxTargetDown
+        expr: probe_success{job="blackbox_http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Blackbox failed for {{ $labels.instance }}"
+          description: "Target {{ $labels.instance }} is DOWN > 2m"
+
+      # זמן תגובה חיצוני גבוה
+      - alert: HighExternalLatency
+        expr: avg_over_time(probe_duration_seconds{job="blackbox_http"}[5m]) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High external latency for {{ $labels.instance }}"
+          description: "Average over 5m > 1.5s"
