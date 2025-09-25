@@ -40,6 +40,7 @@ jobs:
       # Restore tfstate from a previous successful run of this workflow file.
       # IMPORTANT: The 'workflow' value must be the exact path to this file.
       - name: Restore tfstate (from previous run)
+        id: restore_from_previous_run
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: .github/workflows/infra.yaml   # exact workflow file path
