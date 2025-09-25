@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "9090:9090"
+    depends_on:
+      - blackbox
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  blackbox:
+    image: prom/blackbox-exporter
+    container_name: blackbox-exporter
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    ports:
+      - "9115:9115"
+
+  # Optional: enable if you want host metrics (CPU/memory/disk)
+  # node_exporter:
+  #   image: prom/node-exporter
+  #   container_name: node-exporter
+  #   network_mode: host
+  #   pid: host
+  #   restart: unless-stopped
+
+volumes:
+  grafana-data:
