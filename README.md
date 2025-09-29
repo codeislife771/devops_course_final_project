@@ -51,8 +51,11 @@ cd devops_course_final_project
 # Build Docker image
 docker build -t flask-task-manager .
 
-# Run container
-docker run -d -p 5000:5000 flask-task-manager
+# Run a container named "flask-task-manager" in detached mode (-d) and map port 5000 on the host to port 5000 in the container
+docker run -d -p 5000:5000 --name flask-task-manager flask-task-manager
+
+# Run unit tests (test_tasks.py) inside the "flask-task-manager" container using Python's unittest
+docker exec -it flask-task-manager python3 -m unittest test_tasks.py
 
 # Check health endpoint (JSON)
 curl http://localhost:5000/health
