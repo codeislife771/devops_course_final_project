@@ -14,7 +14,6 @@ on:
         required: false
         default: terraform
 
-# Permissions are required to read artifacts from previous workflow runs
 permissions:
   contents: read
   actions: read
@@ -37,24 +36,22 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Restore tfstate from a previous successful run of this workflow file.
-      # IMPORTANT: The 'workflow' value must be the exact path to this file.
+      # Restore tfstate from a previous successful run of this workflow file
       - name: Restore tfstate (from previous run)
         id: restore_from_previous_run
         continue-on-error: true
         uses: dawidd6/action-download-artifact@v6
         with:
-          workflow: .github/workflows/infra.yaml   # exact workflow file path
-          name: tfstate                            # artifact name produced below
-          branch: main                             # change if your artifact was produced on a different branch
-          path: ${{ github.event.inputs.dir }}     # extract into the TF working dir (e.g., terraform/)
+          workflow: .github/workflows/infra.yaml
+          name: tfstate
+          branch: main
+          path: ${{ github.event.inputs.dir }}
           if_no_artifact_found: warn
 
-      # Optional fallback: try to fetch the latest successful artifact on the branch,
-      # even if it's from a different workflow file (useful if the exact file changed).
+      # Optional fallback: try to fetch the latest successful artifact on the branch
       - name: Restore tfstate (fallback: latest successful on branch)
         id: restore_fallback
-        if: ${{ (steps.restore_from_previous_run.outcome == 'failure') || (steps.restore_from_previous_run.outcome == 'cancelled') || (steps.restore_from_previous_run.outcome == 'skipped') }}
+        if: ${{ steps.restore_from_previous_run.outcome == 'failure' || steps.restore_from_previous_run.outcome == 'cancelled' || steps.restore_from_previous_run.outcome == 'skipped' }}
         continue-on-error: true
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -64,7 +61,7 @@ jobs:
           path: ${{ github.event.inputs.dir }}
           if_no_artifact_found: warn
 
-      # Quick check to confirm whether terraform.tfstate is present before init/destroy
+      # Quick check for terraform.tfstate
       - name: Verify tfstate presence
         working-directory: ${{ github.event.inputs.dir }}
         run: |
@@ -79,19 +76,18 @@ jobs:
 
       # --- K8s cleanup (destroy only) ---
       - name: Install kubectl (only for destroy)
-        if: ${{ github.event.inputs.action == 'destroy' }}
+        if: ${{ always() && github.event.inputs.action == 'destroy' }}
         uses: azure/setup-kubectl@v4
 
       - name: Connect kubectl to EKS (only for destroy)
-        if: ${{ github.event.inputs.action == 'destroy' }}
+        if: ${{ always() && github.event.inputs.action == 'destroy' }}
         run: |
           set -e
           aws eks update-kubeconfig --name "${{ vars.EKS_CLUSTER_NAME }}" --region "${{ vars.AWS_REGION }}"
 
       - name: Undeploy app (only for destroy)
-        if: ${{ github.event.inputs.action == 'destroy' }}
+        if: ${{ always() && github.event.inputs.action == 'destroy' }}
         run: |
-          # If the cluster/context does not exist, skip gracefully
           set +e
           kubectl delete service flask-service --ignore-not-found
           sleep 15
@@ -124,7 +120,7 @@ jobs:
         working-directory: ${{ github.event.inputs.dir }}
         run: terraform destroy -auto-approve -input=false
 
-      # Always upload tfstate at the end so the next run can restore it
+      # Always upload tfstate
       - name: Save tfstate (always)
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
