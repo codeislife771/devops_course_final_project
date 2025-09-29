@@ -36,31 +36,6 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Restore tfstate from a previous successful run of this workflow file
-      - name: Restore tfstate (from previous run)
-        id: restore_from_previous_run
-        continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          workflow: .github/workflows/infra.yaml
-          name: tfstate
-          branch: main
-          path: ${{ github.event.inputs.dir }}
-          if_no_artifact_found: warn
-
-      # Optional fallback: try to fetch the latest successful artifact on the branch
-      - name: Restore tfstate (fallback: latest successful on branch)
-        id: restore_fallback
-        if: ${{ steps.restore_from_previous_run.outcome == 'failure' || steps.restore_from_previous_run.outcome == 'cancelled' || steps.restore_from_previous_run.outcome == 'skipped' }}
-        continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          workflow_conclusion: success
-          name: tfstate
-          branch: main
-          path: ${{ github.event.inputs.dir }}
-          if_no_artifact_found: warn
-
       # Quick check for terraform.tfstate
       - name: Verify tfstate presence
         working-directory: ${{ github.event.inputs.dir }}
@@ -128,6 +103,3 @@ jobs:
           name: tfstate
           path: |
             ${{ github.event.inputs.dir }}/terraform.tfstate
-            ${{ github.event.inputs.dir }}/terraform.tfstate.backup
-          if-no-files-found: ignore
-          retention-days: 14
