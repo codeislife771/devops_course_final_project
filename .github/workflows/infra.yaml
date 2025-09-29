@@ -53,7 +53,8 @@ jobs:
       # Optional fallback: try to fetch the latest successful artifact on the branch,
       # even if it's from a different workflow file (useful if the exact file changed).
       - name: Restore tfstate (fallback: latest successful on branch)
-        if: steps.restore_from_previous_run.outcome == 'failure' || steps.restore_from_previous_run.outcome == 'cancelled' || steps.restore_from_previous_run.outcome == 'skipped'
+        id: restore_fallback
+        if: ${{ steps.restore_from_previous_run.outcome == 'failure' || steps.restore_from_previous_run.outcome == 'cancelled' || steps.restore_from_previous_run.outcome == 'skipped' }}
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow_conclusion: success
@@ -62,7 +63,6 @@ jobs:
           path: ${{ github.event.inputs.dir }}
           if_no_artifact_found: warn
         continue-on-error: true
-        id: restore_fallback
 
       # Quick check to confirm whether terraform.tfstate is present before init/destroy
       - name: Verify tfstate presence
