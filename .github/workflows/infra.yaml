@@ -54,7 +54,7 @@ jobs:
       # even if it's from a different workflow file (useful if the exact file changed).
       - name: Restore tfstate (fallback: latest successful on branch)
         id: restore_fallback
-        if: ${{ (steps.restore_from_previous_run.outcome == 'failure') || (steps.restore_from_previous_run.outcome == 'cancelled') || (steps.restore_from_previous_run.outcome == 'skipped') }}
+        if: ${{ steps.restore_from_previous_run.outcome == 'failure' || steps.restore_from_previous_run.outcome == 'cancelled' || steps.restore_from_previous_run.outcome == 'skipped' }}
         continue-on-error: true
         uses: dawidd6/action-download-artifact@v6
         with:
