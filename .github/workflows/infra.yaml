@@ -36,32 +36,21 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Quick check for terraform.tfstate (before downloading)
-      - name: Verify local tfstate presence
-        working-directory: ${{ github.event.inputs.dir }}
-        run: |
-          echo "Listing files in $(pwd):"
-          ls -la || true
-          if [ -f "terraform.tfstate" ]; then
-            echo "Found local terraform.tfstate"
-            terraform state list || true
-          else
-            echo "No local terraform.tfstate (will try to download artifact next)."
-          fi
-
       # --- K8s cleanup (destroy only) ---
       - name: Install kubectl (only for destroy)
-        if: ${{ always() && github.event.inputs.action == 'destroy' }}
+        if: ${{ github.event.inputs.action == 'destroy' }}
         uses: azure/setup-kubectl@v4
 
       - name: Connect kubectl to EKS (only for destroy)
-        if: ${{ always() && github.event.inputs.action == 'destroy' }}
+        if: ${{ github.event.inputs.action == 'destroy' }}
         run: |
           set -e
-          aws eks update-kubeconfig --name "${{ vars.EKS_CLUSTER_NAME }}" --region "${{ vars.AWS_REGION }}"
+          aws eks update-kubeconfig \
+            --name "${{ vars.EKS_CLUSTER_NAME }}" \
+            --region "${{ vars.AWS_REGION }}"
 
       - name: Undeploy app (only for destroy)
-        if: ${{ always() && github.event.inputs.action == 'destroy' }}
+        if: ${{ github.event.inputs.action == 'destroy' }}
         run: |
           set +e
           kubectl delete service flask-service --ignore-not-found
@@ -69,34 +58,16 @@ jobs:
           if [ -d "deploy" ]; then
             kubectl delete -f deploy/ --ignore-not-found
           else
-            echo "deploy/ not found at repo root; skipping kubectl delete -f deploy/"
+            echo "deploy/ not found at repo root; skipping"
           fi
           kubectl get svc -A 2>/dev/null | (grep LoadBalancer || true)
           set -e
       # --- end K8s cleanup ---
 
-      - name: Download previous tfstate (if exists)
-        uses: actions/download-artifact@v4
-        with:
-          name: tfstate
-          path: ${{ github.event.inputs.dir }}
-        continue-on-error: true
-
-      # Verify downloaded state
-      - name: Show Terraform state after artifact download
-        working-directory: ${{ github.event.inputs.dir }}
-        run: |
-          if [ -f "terraform.tfstate" ]; then
-            echo "Restored terraform.tfstate from artifact:"
-            terraform state list || true
-          else
-            echo "No terraform.tfstate found after download (first run or artifact missing)."
-          fi
-
       # Terraform steps
       - name: terraform init
         working-directory: ${{ github.event.inputs.dir }}
-        run: terraform init -input=false
+        run: terraform init -input=false -reconfigure # -reconfigure ensures Terraform always uses the S3 backend defined in backend.tf
 
       - name: terraform plan
         if: ${{ github.event.inputs.action == 'plan' }}
@@ -112,12 +83,3 @@ jobs:
         if: ${{ github.event.inputs.action == 'destroy' }}
         working-directory: ${{ github.event.inputs.dir }}
         run: terraform destroy -auto-approve -input=false
-
-      # Always upload tfstate
-      - name: Save tfstate (always)
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfstate
-          path: |
-            ${{ github.event.inputs.dir }}/terraform.tfstate
