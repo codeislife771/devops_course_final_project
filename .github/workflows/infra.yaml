@@ -36,17 +36,17 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Quick check for terraform.tfstate
-      - name: Verify tfstate presence
+      # Quick check for terraform.tfstate (before downloading)
+      - name: Verify local tfstate presence
         working-directory: ${{ github.event.inputs.dir }}
         run: |
           echo "Listing files in $(pwd):"
           ls -la || true
           if [ -f "terraform.tfstate" ]; then
-            echo "Found terraform.tfstate"
+            echo "Found local terraform.tfstate"
             terraform state list || true
           else
-            echo "terraform.tfstate NOT found (destroy will likely do nothing unless you use a remote backend)."
+            echo "No local terraform.tfstate (will try to download artifact next)."
           fi
 
       # --- K8s cleanup (destroy only) ---
@@ -81,6 +81,17 @@ jobs:
           name: tfstate
           path: ${{ github.event.inputs.dir }}
         continue-on-error: true
+
+      # Verify downloaded state
+      - name: Show Terraform state after artifact download
+        working-directory: ${{ github.event.inputs.dir }}
+        run: |
+          if [ -f "terraform.tfstate" ]; then
+            echo "Restored terraform.tfstate from artifact:"
+            terraform state list || true
+          else
+            echo "No terraform.tfstate found after download (first run or artifact missing)."
+          fi
 
       # Terraform steps
       - name: terraform init
