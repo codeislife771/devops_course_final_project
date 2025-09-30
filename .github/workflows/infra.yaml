@@ -75,6 +75,13 @@ jobs:
           set -e
       # --- end K8s cleanup ---
 
+      - name: Download previous tfstate (if exists)
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate
+          path: ${{ github.event.inputs.dir }}
+        continue-on-error: true
+
       # Terraform steps
       - name: terraform init
         working-directory: ${{ github.event.inputs.dir }}
