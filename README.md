@@ -36,7 +36,8 @@ Includes CI/CD pipelines using **GitHub Actions**.
 │
 └── .github/workflows/    # CI/CD pipelines
     ├── ci-dev.yaml
-    └── cd-main.yaml
+    └── cd-deploy.yaml
+    └── infra.yaml
 ```
 
 ---
@@ -92,7 +93,7 @@ http://localhost:5000/tasks
 
 ## 🔄 CI/CD Pipelines
 - **ci-dev.yaml** – runs on feature/dev branches (build + test)  
-- **cd-main.yaml** – runs on `main`, builds + pushes Docker image, deploys to EKS  
+- **cd-deploy.yaml** – runs on `main`, builds + pushes Docker image, deploys to EKS  
 
 ---
 
@@ -130,7 +131,7 @@ To run the CI/CD pipelines successfully, the following must be configured in **G
 
 ### Variables
 - `AWS_REGION` – AWS region (e.g., `us-east-1`)
-- `EKS_CLUSTER_NAME` – Name of the target EKS cluster
+- `EKS_CLUSTER_NAME` – Name of the target EKS cluster (e.g., `myEKS-cluster`)
 
 ---
 
